@@ -4,11 +4,13 @@ const { Server: WebSocketServer } = require('ws');
 const net = require('net');
 const path = require('path');
 const socketIo = require('socket.io');
+const WebSocket = require('ws'); // WebSocket client
 
 const app = express();
 const server = http.createServer(app);
 const port = process.env.PORT || 3000;
-const tcpPort = 4444; // Port for the TCP server
+const tcpPort = 4444; // Port for TCP server
+const adminPort = 5555; // Port for admin TCP server
 
 // Serve static files
 app.use(express.static(path.join(__dirname, 'public')));
@@ -23,6 +25,8 @@ const io = socketIo(server);
 const users = {};
 
 io.on('connection', (socket) => {
+  console.log('WebSocket client connected');
+  
   socket.on('new-user-joined', (username) => {
     users[socket.id] = username;
     socket.broadcast.emit('user-connected', username);
@@ -62,4 +66,43 @@ const tcpServer = net.createServer((clientSocket) => {
 
 tcpServer.listen(tcpPort, '0.0.0.0', () => {
   console.log(`TCP server listening on port ${tcpPort}`);
+});
+
+// Create a TCP server to handle admin connections on port 5555
+const adminServer = net.createServer((adminSocket) => {
+  console.log('Admin client connected');
+
+  adminSocket.on('data', (data) => {
+    console.log(`Admin received data: ${data}`);
+    // You can handle admin commands or messages here
+  });
+
+  adminSocket.on('end', () => {
+    console.log('Admin client disconnected');
+  });
+});
+
+adminServer.listen(adminPort, '0.0.0.0', () => {
+  console.log(`Admin TCP server listening on port ${adminPort}`);
+});
+
+// Connect to the external WebSocket server
+const externalWsUrl = 'wss://chat-w-a.onrender.com/'; // Assuming wss protocol for secure WebSocket
+const ws = new WebSocket(externalWsUrl);
+
+ws.on('open', () => {
+  console.log('Connected to external WebSocket server');
+});
+
+ws.on('message', (message) => {
+  console.log('Received message from external WebSocket server:', message);
+  // Handle incoming messages from the external WebSocket server
+});
+
+ws.on('close', () => {
+  console.log('Disconnected from external WebSocket server');
+});
+
+ws.on('error', (error) => {
+  console.error('WebSocket error:', error);
 });
