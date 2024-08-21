@@ -1,6 +1,5 @@
 const http = require('http');
 const express = require('express');
-const { Server: WebSocketServer } = require('ws');
 const net = require('net');
 const path = require('path');
 const socketIo = require('socket.io');
@@ -9,8 +8,8 @@ const WebSocket = require('ws'); // WebSocket client
 const app = express();
 const server = http.createServer(app);
 const port = process.env.PORT || 3000;
-const tcpPort = 4444; // Port for TCP server
-const adminPort = 5555; // Port for admin TCP server
+const tcpPort = 4444; // Port for TCP clients
+const adminPort = 5555; // Port for admin TCP clients
 
 // Serve static files
 app.use(express.static(path.join(__dirname, 'public')));
@@ -74,7 +73,13 @@ const adminServer = net.createServer((adminSocket) => {
 
   adminSocket.on('data', (data) => {
     console.log(`Admin received data: ${data}`);
-    // You can handle admin commands or messages here
+    // Handle admin commands or messages
+    // Example: Broadcast message to all TCP clients
+    tcpServer.getConnections((err, clients) => {
+      clients.forEach(client => {
+        client.write(data);
+      });
+    });
   });
 
   adminSocket.on('end', () => {
