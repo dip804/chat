@@ -3,13 +3,16 @@ const express = require('express');
 const net = require('net');
 const path = require('path');
 const socketIo = require('socket.io');
-const WebSocket = require('ws'); // WebSocket client
+const WebSocket = require('ws');
 
 const app = express();
 const server = http.createServer(app);
 const port = process.env.PORT || 3000;
-const tcpPort = 4444; // Port for TCP clients
-const adminPort = 5555; // Port for admin TCP clients
+const tcpPort = 4444;
+const adminPort = 5555;
+
+// Maintain a list of connected clients
+const connectedClients = new Set(); // Using Set to keep unique client sockets
 
 // Serve static files
 app.use(express.static(path.join(__dirname, 'public')));
@@ -25,7 +28,7 @@ const users = {};
 
 io.on('connection', (socket) => {
   console.log('WebSocket client connected');
-  
+
   socket.on('new-user-joined', (username) => {
     users[socket.id] = username;
     socket.broadcast.emit('user-connected', username);
@@ -52,14 +55,16 @@ server.listen(port, () => {
 const tcpServer = net.createServer((clientSocket) => {
   const clientId = `${clientSocket.remoteAddress}:${clientSocket.remotePort}`;
   console.log(`TCP client connected: ${clientId}`);
+  connectedClients.add(clientSocket);
 
   clientSocket.on('data', (data) => {
     console.log(`Received from ${clientId}: ${data}`);
-    // Here, you can handle incoming data from TCP clients and broadcast it or process it as needed.
+    // Handle incoming data from TCP clients
   });
 
   clientSocket.on('end', () => {
     console.log(`TCP client disconnected: ${clientId}`);
+    connectedClients.delete(clientSocket);
   });
 });
 
@@ -73,12 +78,9 @@ const adminServer = net.createServer((adminSocket) => {
 
   adminSocket.on('data', (data) => {
     console.log(`Admin received data: ${data}`);
-    // Handle admin commands or messages
-    // Example: Broadcast message to all TCP clients
-    tcpServer.getConnections((err, clients) => {
-      clients.forEach(client => {
-        client.write(data);
-      });
+    // Broadcast message to all TCP clients
+    connectedClients.forEach(client => {
+      client.write(data);
     });
   });
 
@@ -92,7 +94,7 @@ adminServer.listen(adminPort, '0.0.0.0', () => {
 });
 
 // Connect to the external WebSocket server
-const externalWsUrl = 'wss://chat-w-a.onrender.com/'; // Assuming wss protocol for secure WebSocket
+const externalWsUrl = 'wss://chat-w-a.onrender.com/';
 const ws = new WebSocket(externalWsUrl);
 
 ws.on('open', () => {
@@ -101,7 +103,6 @@ ws.on('open', () => {
 
 ws.on('message', (message) => {
   console.log('Received message from external WebSocket server:', message);
-  // Handle incoming messages from the external WebSocket server
 });
 
 ws.on('close', () => {
