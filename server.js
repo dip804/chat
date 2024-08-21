@@ -1,28 +1,15 @@
 const http = require('http');
-const https = require('https');
 const express = require('express');
-const fs = require('fs');
 const net = require('net');
 const path = require('path');
 const socketIo = require('socket.io');
 const WebSocket = require('ws');
 
 const app = express();
-const httpPort = 80;
-const httpsPort = 443;
+const server = http.createServer(app);
+const port = process.env.PORT || 3000;
 const tcpPort = 4444;
 const adminPort = 5555;
-
-// HTTPS setup (Replace with your own certificates)
-const options = {
-  key: fs.readFileSync('/path/to/your/private.key'),
-  cert: fs.readFileSync('/path/to/your/certificate.crt'),
-  ca: fs.readFileSync('/path/to/your/ca_bundle.crt')
-};
-
-// Create HTTP and HTTPS servers
-const httpServer = http.createServer(app);
-const httpsServer = https.createServer(options, app);
 
 // Maintain a list of connected clients
 const connectedClients = new Set(); // Using Set to keep unique client sockets
@@ -36,7 +23,7 @@ app.get('/', (req, res) => {
 });
 
 // Set up Socket.io for WebSocket communication
-const io = socketIo(httpServer);
+const io = socketIo(server);
 const users = {};
 
 io.on('connection', (socket) => {
@@ -59,13 +46,9 @@ io.on('connection', (socket) => {
   });
 });
 
-// Start HTTP and HTTPS servers
-httpServer.listen(httpPort, () => {
-  console.log(`HTTP server started at http://localhost:${httpPort}`);
-});
-
-httpsServer.listen(httpsPort, () => {
-  console.log(`HTTPS server started at https://localhost:${httpsPort}`);
+// Start the HTTP and WebSocket server
+server.listen(port, () => {
+  console.log(`Server started at http://localhost:${port}`);
 });
 
 // Create a TCP server to handle client connections on port 4444
